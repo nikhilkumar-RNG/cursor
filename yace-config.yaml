@@ -1,0 +1,224 @@
+apiVersion: v1alpha1
+# YACE Configuration for AWS Transcribe Metrics
+# This configuration collects CloudWatch metrics from AWS Transcribe service
+
+static:
+  # AWS Transcribe metrics configuration
+  - name: transcribe-metrics
+    namespace: AWS/Transcribe
+    regions:
+      - us-east-1  # Update with your regions
+      - us-west-2
+      - eu-west-1
+    period: 300  # 5 minutes (CloudWatch period)
+    length: 300  # 5 minutes (data point collection window)
+    delay: 120   # 2 minutes delay to ensure metrics are available
+    metrics:
+      # Request metrics
+      - name: TotalRequestCount
+        statistics: 
+          - Sum
+          - Average
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+      
+      - name: SuccessfulRequestCount
+        statistics: 
+          - Sum
+          - Average
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+      
+      # Error metrics
+      - name: UserErrorCount
+        statistics: 
+          - Sum
+          - Average
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+      
+      - name: SyncServerErrorCount
+        statistics: 
+          - Sum
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+      
+      - name: AsyncServerErrorCount
+        statistics: 
+          - Sum
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+      
+      - name: ThrottledCount
+        statistics: 
+          - Sum
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+      
+      - name: LimitExceededCount
+        statistics: 
+          - Sum
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+      
+      # Performance metrics
+      - name: AudioDurationTime
+        statistics: 
+          - Average
+          - Maximum
+          - Minimum
+          - Sum
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+      
+      # Async job metrics
+      - name: AsyncJobsInQueue
+        statistics: 
+          - Average
+          - Maximum
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+      
+      - name: AsyncJobsCompleted
+        statistics: 
+          - Sum
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+      
+      - name: AsyncJobsFailed
+        statistics: 
+          - Sum
+        dimensions:
+          - name: Domain
+            value: "*"
+          - name: ServiceType
+            value: "*"
+          - name: LanguageCode
+            value: "*"
+          - name: ModelName
+            value: "*"
+
+  # Alternative configuration without dimensions (global metrics)
+  - name: transcribe-metrics-global
+    namespace: AWS/Transcribe
+    regions:
+      - us-east-1  # Update with your regions
+      - us-west-2
+      - eu-west-1
+    period: 300
+    length: 300
+    delay: 120
+    metrics:
+      - name: TotalRequestCount
+        statistics: [Sum]
+      - name: SuccessfulRequestCount
+        statistics: [Sum]
+      - name: UserErrorCount
+        statistics: [Sum]
+      - name: SyncServerErrorCount
+        statistics: [Sum]
+      - name: AsyncServerErrorCount
+        statistics: [Sum]
+      - name: ThrottledCount
+        statistics: [Sum]
+      - name: LimitExceededCount
+        statistics: [Sum]
+      - name: AudioDurationTime
+        statistics: [Sum, Average]
+      - name: AsyncJobsInQueue
+        statistics: [Average, Maximum]
+      - name: AsyncJobsCompleted
+        statistics: [Sum]
+      - name: AsyncJobsFailed
+        statistics: [Sum]
+
+# Optional: Add custom dimensions if you know specific values
+# For example, if you only care about specific language codes:
+#  - name: transcribe-metrics-english
+#    namespace: AWS/Transcribe
+#    regions:
+#      - us-east-1
+#    period: 300
+#    length: 300
+#    delay: 120
+#    metrics:
+#      - name: TotalRequestCount
+#        statistics: [Sum]
+#        dimensions:
+#          - name: LanguageCode
+#            value: en-US
+#      - name: AudioDurationTime
+#        statistics: [Average]
+#        dimensions:
+#          - name: LanguageCode
+#            value: en-US

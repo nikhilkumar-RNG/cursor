@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  yace:
+    image: quay.io/prometheuscommunity/yet-another-cloudwatch-exporter:v0.55.0
+    container_name: yace-transcribe
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./yace-config.yaml:/tmp/config.yml:ro
+    environment:
+      # AWS credentials - use one of the following methods:
+      # Method 1: Direct credentials (not recommended for production)
+      # - AWS_ACCESS_KEY_ID=your_access_key
+      # - AWS_SECRET_ACCESS_KEY=your_secret_key
+      
+      # Method 2: Use AWS profile
+      # - AWS_PROFILE=your_profile_name
+      
+      # Method 3: Use IAM role (recommended for EC2/ECS)
+      # No environment variables needed if running on EC2/ECS with proper IAM role
+      
+      # Optional: Set specific region
+      - AWS_REGION=us-east-1
+      
+      # YACE configuration
+      - config.file=/tmp/config.yml
+      - listen-address=:5000
+      - log.level=info
+      
+    # For AWS credentials from host (Method 2)
+    # volumes:
+    #   - ~/.aws:/root/.aws:ro
+    #   - ./yace-config.yaml:/tmp/config.yml:ro
+    
+    restart: unless-stopped
+    
+  # Optional: Add Prometheus if you don't have it running already
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    depends_on:
+      - yace
+
+  # Optional: Add Grafana for visualization
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana-provisioning:/etc/grafana/provisioning:ro
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus_data:
+  grafana_data:

@@ -1,0 +1,96 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # YACE scrape configuration for AWS Transcribe metrics
+  - job_name: 'yace-transcribe'
+    static_configs:
+      - targets: ['yace:5000']  # Use 'localhost:5000' if not using Docker
+    scrape_interval: 60s  # Adjust based on your needs
+    scrape_timeout: 55s   # Should be less than scrape_interval
+    
+    # Optional: Add metric relabeling to make metrics easier to work with
+    metric_relabel_configs:
+      # Add a label to identify these as Transcribe metrics
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_.*'
+        target_label: service
+        replacement: 'transcribe'
+      
+      # Rename metrics to be more Prometheus-friendly
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_total_request_count_sum'
+        target_label: __name__
+        replacement: 'transcribe_requests_total'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_successful_request_count_sum'
+        target_label: __name__
+        replacement: 'transcribe_requests_success_total'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_user_error_count_sum'
+        target_label: __name__
+        replacement: 'transcribe_errors_user_total'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_sync_server_error_count_sum'
+        target_label: __name__
+        replacement: 'transcribe_errors_server_sync_total'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_async_server_error_count_sum'
+        target_label: __name__
+        replacement: 'transcribe_errors_server_async_total'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_throttled_count_sum'
+        target_label: __name__
+        replacement: 'transcribe_throttled_total'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_limit_exceeded_count_sum'
+        target_label: __name__
+        replacement: 'transcribe_limit_exceeded_total'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_audio_duration_time_sum'
+        target_label: __name__
+        replacement: 'transcribe_audio_duration_seconds_total'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_audio_duration_time_average'
+        target_label: __name__
+        replacement: 'transcribe_audio_duration_seconds_avg'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_async_jobs_in_queue_average'
+        target_label: __name__
+        replacement: 'transcribe_jobs_queue_avg'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_async_jobs_completed_sum'
+        target_label: __name__
+        replacement: 'transcribe_jobs_completed_total'
+      
+      - source_labels: [__name__]
+        regex: 'aws_transcribe_async_jobs_failed_sum'
+        target_label: __name__
+        replacement: 'transcribe_jobs_failed_total'
+
+# If you have an existing Prometheus configuration, add this job to your scrape_configs
+# Example of how to add to existing config:
+#
+# scrape_configs:
+#   # Your existing jobs...
+#   - job_name: 'your-existing-job'
+#     static_configs:
+#       - targets: ['your-target:port']
+#   
+#   # Add YACE job here
+#   - job_name: 'yace-transcribe'
+#     static_configs:
+#       - targets: ['yace:5000']
+#     scrape_interval: 60s
+#     scrape_timeout: 55s

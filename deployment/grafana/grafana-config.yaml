@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: monitoring
+data:
+  grafana.ini: |
+    [server]
+    http_port = 3000
+    root_url = http://localhost:3000
+
+    [security]
+    admin_user = admin
+    admin_password = admin
+
+    [auth.anonymous]
+    enabled = false
+
+    [users]
+    allow_sign_up = false
+
+    [log]
+    mode = console
+    level = info
+
+    [feature_toggles]
+    enable = traceqlEditor,traceToMetrics,correlations
+
+    [unified_alerting]
+    enabled = true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      # Prometheus
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.monitoring.svc.cluster.local:9090
+        isDefault: false
+        version: 1
+        editable: true
+        jsonData:
+          httpMethod: POST
+          exemplarTraceIdDestinations:
+            - name: trace_id
+              datasourceUid: tempo
+
+      # Loki
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki.monitoring.svc.cluster.local:3100
+        isDefault: true
+        version: 1
+        editable: true
+        jsonData:
+          maxLines: 1000
+          derivedFields:
+            # Derive trace ID from logs
+            - datasourceUid: tempo
+              matcherRegex: "trace_id=(\\w+)"
+              name: TraceID
+              url: "$${__value.raw}"
+            - datasourceUid: tempo
+              matcherRegex: "traceID=(\\w+)"
+              name: TraceID
+              url: "$${__value.raw}"
+            - datasourceUid: tempo
+              matcherRegex: '"trace_id":"(\\w+)"'
+              name: TraceID
+              url: "$${__value.raw}"
+
+      # Tempo
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://tempo.monitoring.svc.cluster.local:3200
+        uid: tempo
+        isDefault: false
+        version: 1
+        editable: true
+        jsonData:
+          httpMethod: GET
+          tracesToLogs:
+            datasourceUid: loki
+            tags: ['job', 'instance', 'pod', 'namespace']
+            mappedTags: [{ key: 'service.name', value: 'app' }]
+            mapTagNamesEnabled: true
+            spanStartTimeShift: '-1h'
+            spanEndTimeShift: '1h'
+            filterByTraceID: true
+            filterBySpanID: false
+            lokiSearch: true
+          tracesToMetrics:
+            datasourceUid: prometheus
+            tags: [{ key: 'service.name', value: 'app' }, { key: 'job' }]
+            queries:
+              - name: 'Sample query'
+                query: 'sum(rate(tempo_spanmetrics_latency_bucket{$__tags}[5m]))'
+          serviceMap:
+            datasourceUid: prometheus
+          search:
+            hide: false
+          nodeGraph:
+            enabled: true
+          lokiSearch:
+            datasourceUid: loki
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-config
+  namespace: monitoring
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards

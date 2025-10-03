@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+data:
+  loki-performance.json: |
+    {
+      "dashboard": {
+        "title": "Loki Performance & Operations",
+        "tags": ["loki", "logs"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Ingestion Rate",
+            "targets": [
+              {
+                "expr": "sum(rate(loki_distributor_bytes_received_total[5m]))",
+                "legendFormat": "Bytes/sec",
+                "refId": "A"
+              }
+            ],
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "title": "Query Performance",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.99, sum(rate(loki_request_duration_seconds_bucket[5m])) by (le))",
+                "legendFormat": "p99",
+                "refId": "A"
+              }
+            ],
+            "type": "graph",
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          }
+        ]
+      }
+    }
+
+  log-exploration.json: |
+    {
+      "dashboard": {
+        "title": "Log Exploration Dashboard",
+        "tags": ["logs", "exploration"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Logs by Namespace",
+            "targets": [
+              {
+                "expr": "{namespace=~\".*\"}",
+                "refId": "A"
+              }
+            ],
+            "type": "logs",
+            "gridPos": {"h": 12, "w": 24, "x": 0, "y": 0}
+          }
+        ]
+      }
+    }
+
+  trace-correlation.json: |
+    {
+      "dashboard": {
+        "title": "Trace-to-Log Correlation",
+        "tags": ["tempo", "loki", "correlation"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Service Map",
+            "type": "nodeGraph",
+            "gridPos": {"h": 12, "w": 24, "x": 0, "y": 0}
+          },
+          {
+            "title": "Traces",
+            "type": "traces",
+            "gridPos": {"h": 12, "w": 24, "x": 0, "y": 12}
+          }
+        ]
+      }
+    }

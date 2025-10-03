@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: log-generator-script
+  namespace: monitoring
+data:
+  generate-logs.sh: |
+    #!/bin/bash
+    # Generate various log patterns for testing
+    
+    counter=0
+    trace_id=$(cat /proc/sys/kernel/random/uuid | tr -d '-')
+    
+    log_patterns=(
+      "INFO"
+      "WARNING"
+      "ERROR"
+      "DEBUG"
+    )
+    
+    services=(
+      "api-gateway"
+      "user-service"
+      "payment-service"
+      "inventory-service"
+      "notification-service"
+    )
+    
+    while true; do
+      level=${log_patterns[$RANDOM % ${#log_patterns[@]}]}
+      service=${services[$RANDOM % ${#services[@]}]}
+      trace_id=$(cat /proc/sys/kernel/random/uuid | tr -d '-')
+      
+      # Structured log with trace_id for correlation
+      echo "{\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\",\"level\":\"$level\",\"service\":\"$service\",\"trace_id\":\"$trace_id\",\"message\":\"Processing request $counter\",\"user_id\":$((RANDOM % 1000)),\"duration_ms\":$((RANDOM % 5000))}"
+      
+      # Plain text logs
+      echo "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ) $level [$service] Processing request $counter with trace_id=$trace_id"
+      
+      # Error logs (10% chance)
+      if [ $((RANDOM % 10)) -eq 0 ]; then
+        echo "{\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\",\"level\":\"ERROR\",\"service\":\"$service\",\"trace_id\":\"$trace_id\",\"message\":\"Failed to process request\",\"error\":\"Connection timeout\",\"stack_trace\":\"at service.handler.process()\"}"
+      fi
+      
+      counter=$((counter + 1))
+      
+      # Variable rate: 1-10 logs per second
+      sleep $(awk -v min=0.1 -v max=1.0 'BEGIN{srand(); print min+rand()*(max-min)}')
+    done
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-generator
+  namespace: monitoring
+  labels:
+    app: log-generator
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: log-generator
+  template:
+    metadata:
+      labels:
+        app: log-generator
+        component: test
+    spec:
+      containers:
+      - name: generator
+        image: bash:5.2
+        command: ["/bin/bash", "/scripts/generate-logs.sh"]
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - name: script
+          mountPath: /scripts
+      volumes:
+      - name: script
+        configMap:
+          name: log-generator-script
+          defaultMode: 0755

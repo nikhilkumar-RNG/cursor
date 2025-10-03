@@ -1,0 +1,164 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tempo
+  namespace: monitoring
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: tempo
+  namespace: monitoring
+  labels:
+    app: tempo
+spec:
+  serviceName: tempo
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tempo
+  template:
+    metadata:
+      labels:
+        app: tempo
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3200"
+    spec:
+      serviceAccountName: tempo
+      securityContext:
+        fsGroup: 10001
+        runAsUser: 10001
+        runAsNonRoot: true
+      containers:
+      - name: tempo
+        image: grafana/tempo:2.3.1
+        imagePullPolicy: IfNotPresent
+        args:
+          - -config.file=/etc/tempo/tempo.yaml
+          - -target=all
+        ports:
+        - containerPort: 3200
+          name: http
+          protocol: TCP
+        - containerPort: 14268
+          name: jaeger-http
+          protocol: TCP
+        - containerPort: 14250
+          name: jaeger-grpc
+          protocol: TCP
+        - containerPort: 9411
+          name: zipkin
+          protocol: TCP
+        - containerPort: 4318
+          name: otlp-http
+          protocol: TCP
+        - containerPort: 4317
+          name: otlp-grpc
+          protocol: TCP
+        - containerPort: 7946
+          name: memberlist
+          protocol: TCP
+        env:
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tempo-minio-secret
+              key: access-key-id
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: tempo-minio-secret
+              key: secret-access-key
+        - name: CLUSTER_NAME
+          value: "poc-cluster"
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/tempo
+        - name: storage
+          mountPath: /tmp/tempo
+      volumes:
+      - name: config
+        configMap:
+          name: tempo-config
+  volumeClaimTemplates:
+  - metadata:
+      name: storage
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+  namespace: monitoring
+  labels:
+    app: tempo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3200
+    targetPort: 3200
+    protocol: TCP
+    name: http
+  - port: 14268
+    targetPort: 14268
+    protocol: TCP
+    name: jaeger-http
+  - port: 14250
+    targetPort: 14250
+    protocol: TCP
+    name: jaeger-grpc
+  - port: 9411
+    targetPort: 9411
+    protocol: TCP
+    name: zipkin
+  - port: 4318
+    targetPort: 4318
+    protocol: TCP
+    name: otlp-http
+  - port: 4317
+    targetPort: 4317
+    protocol: TCP
+    name: otlp-grpc
+  selector:
+    app: tempo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo-memberlist
+  namespace: monitoring
+  labels:
+    app: tempo
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 7946
+    targetPort: 7946
+    protocol: TCP
+    name: memberlist
+  selector:
+    app: tempo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tempo-minio-secret
+  namespace: monitoring
+type: Opaque
+stringData:
+  access-key-id: tempo-admin
+  secret-access-key: tempo-secret-key-change-me

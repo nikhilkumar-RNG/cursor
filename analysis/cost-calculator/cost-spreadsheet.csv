@@ -1,0 +1,79 @@
+Cost Comparison: Loki + Tempo vs ELK + Jaeger
+
+Scenario,Daily Logs (GB),Retention (Days),Solution,Storage (GB),Storage Cost,Compute Cost,Total Monthly Cost,Savings vs ELK,Savings %
+
+Small - 10 GB/day,10,30,Loki + Tempo,37.5,0.86,91.04,91.90,,
+Small - 10 GB/day,10,30,ELK + Jaeger,780,62.40,301.44,363.84,271.94,74.7%
+
+Medium - 100 GB/day,100,30,Loki + Tempo,375,8.63,212.35,220.98,,
+Medium - 100 GB/day,100,30,ELK + Jaeger,7800,624.00,1021.44,1645.44,1424.46,86.6%
+
+Large - 1 TB/day,1000,30,Loki + Tempo,3750,86.25,412.32,498.57,,
+Large - 1 TB/day,1000,30,ELK + Jaeger,78000,6240.00,3021.44,9261.44,8762.87,94.6%
+
+Medium - 90 days,100,90,Loki + Tempo,1125,25.88,212.35,238.23,,
+Medium - 90 days,100,90,ELK + Jaeger,23400,1872.00,1021.44,2893.44,2655.21,91.8%
+
+
+Cost Breakdown Details
+
+Component,Loki + Tempo,ELK + Jaeger,Notes
+
+Log Storage,S3 Standard ($0.023/GB),EBS gp3 ($0.08/GB),Loki uses object storage
+Compression,8:1 typical,1:1 (+ 30% overhead),Loki has better compression
+Trace Storage,S3 Standard ($0.023/GB),EBS gp3 ($0.08/GB),Tempo vs Jaeger
+Replication,Handled by S3,Manual (1 replica),S3 has built-in durability
+Log Aggregator,Promtail/Fluent Bit (free),Logstash (EC2 cost),Collectors
+Query Engine,Loki (1-2 instances),Elasticsearch (3-5 nodes),Different architectures
+Visualization,Grafana (shared),Kibana (dedicated),UI costs
+Tracing,Tempo (integrated),Jaeger (separate),Separate or integrated
+
+Storage Pricing Reference
+
+Service,Cost per GB/month,Use Case
+AWS S3 Standard,$0.023,Loki/Tempo primary storage
+AWS S3 IA,$0.0125,Older logs (lifecycle)
+AWS S3 Glacier,$0.004,Long-term archive
+AWS EBS gp3,$0.08,Elasticsearch volumes
+AWS EBS io2,$0.125,High-performance ES
+
+Compute Instance Pricing (AWS US-East-1)
+
+Instance Type,vCPU,Memory (GB),Cost/hour,Cost/month (730h),Typical Use
+t3.medium,2,4,0.0416,30.37,Grafana
+t3.large,2,8,0.0832,60.74,Small Loki/Tempo
+t3.xlarge,4,16,0.1664,121.47,Medium Loki
+m5.xlarge,4,16,0.192,140.16,Kibana/Logstash/Small ES
+m5.2xlarge,8,32,0.384,280.32,Large Loki/ES node
+m5.4xlarge,16,64,0.768,560.64,Large ES clusters
+
+Key Findings
+
+1. Storage Savings:
+   - Loki compression (8:1) vs ES overhead (1.3x) + replication (2x)
+   - Example: 100GB/day for 30 days
+     - Loki: 100/8 * 30 = 375 GB
+     - ES: 100 * 1.3 * 2 * 30 = 7800 GB
+   - 20x difference in storage needs
+
+2. Cost Savings by Scale:
+   - Small (10 GB/day): 75% savings ($272/mo)
+   - Medium (100 GB/day): 87% savings ($1424/mo)
+   - Large (1 TB/day): 95% savings ($8763/mo)
+   - Savings increase with scale
+
+3. Operational Complexity:
+   - Loki: 1-2 instances + S3
+   - ELK: 3-5 ES nodes + Kibana + Logstash + separate Jaeger
+   - Loki has simpler architecture
+
+4. Additional Considerations:
+   - Data transfer costs (not included)
+   - Backup costs (S3 built-in durability)
+   - Admin time (Loki simpler to manage)
+   - Alert manager integration costs
+
+5. Break-even Analysis:
+   - Loki advantageous at any scale
+   - Largest savings at high volumes
+   - ELK only if full-text search is critical requirement

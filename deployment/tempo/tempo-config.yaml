@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tempo-config
+  namespace: monitoring
+data:
+  tempo.yaml: |
+    server:
+      http_listen_port: 3200
+      log_level: info
+
+    distributor:
+      receivers:
+        jaeger:
+          protocols:
+            thrift_http:
+              endpoint: 0.0.0.0:14268
+            grpc:
+              endpoint: 0.0.0.0:14250
+            thrift_binary:
+              endpoint: 0.0.0.0:6832
+            thrift_compact:
+              endpoint: 0.0.0.0:6831
+        zipkin:
+          endpoint: 0.0.0.0:9411
+        otlp:
+          protocols:
+            http:
+              endpoint: 0.0.0.0:4318
+            grpc:
+              endpoint: 0.0.0.0:4317
+
+    ingester:
+      trace_idle_period: 10s
+      max_block_bytes: 1048576  # 1MB
+      max_block_duration: 5m
+
+    compactor:
+      compaction:
+        block_retention: 720h  # 30 days
+        compacted_block_retention: 1h
+        compaction_window: 1h
+        max_compaction_objects: 1000000
+        retention_concurrency: 10
+        v2_in_buffer_bytes: 5242880
+        v2_out_buffer_bytes: 20971520
+        v2_prefetch_traces_count: 1000
+
+    metrics_generator:
+      registry:
+        external_labels:
+          source: tempo
+          cluster: ${CLUSTER_NAME}
+      storage:
+        path: /tmp/tempo/generator/wal
+        remote_write:
+          - url: http://prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+            send_exemplars: true
+      traces_storage:
+        path: /tmp/tempo/generator/traces
+      processor:
+        service_graphs:
+          enabled: true
+          histogram_buckets: [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8]
+        span_metrics:
+          enabled: true
+          histogram_buckets: [0.002, 0.004, 0.008, 0.016, 0.032, 0.064, 0.128, 0.256, 0.512, 1.024, 2.048, 4.096]
+
+    storage:
+      trace:
+        backend: s3
+        block:
+          version: vParquet2
+          bloom_filter_false_positive: 0.05
+          bloom_filter_shard_size_bytes: 102400
+        wal:
+          path: /tmp/tempo/wal
+        s3:
+          bucket: tempo-data
+          endpoint: minio.monitoring.svc.cluster.local:9000
+          access_key: ${MINIO_ACCESS_KEY}
+          secret_key: ${MINIO_SECRET_KEY}
+          insecure: true
+          forcepathstyle: true
+        pool:
+          max_workers: 100
+          queue_depth: 10000
+
+    querier:
+      frontend_worker:
+        frontend_address: tempo-query-frontend.monitoring.svc.cluster.local:9095
+      max_concurrent_queries: 20
+      search:
+        external_hedge_requests_at: 8s
+        external_hedge_requests_up_to: 2
+
+    query_frontend:
+      search:
+        duration_slo: 5s
+        throughput_bytes_slo: 1.073741824e+09
+        max_duration: 0
+      trace_by_id:
+        duration_slo: 5s
+
+    overrides:
+      defaults:
+        metrics_generator:
+          processors: [service-graphs, span-metrics]
+          max_active_series: 10000
+        ingestion:
+          burst_size_bytes: 5000000
+          rate_limit_bytes: 15000000
+        max_bytes_per_trace: 50000000
+        max_search_duration: 0
+
+    memberlist:
+      abort_if_cluster_join_fails: false
+      join_members:
+        - tempo-memberlist.monitoring.svc.cluster.local:7946

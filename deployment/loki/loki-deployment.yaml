@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: loki
+  namespace: monitoring
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: loki
+  namespace: monitoring
+  labels:
+    app: loki
+spec:
+  serviceName: loki
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3100"
+    spec:
+      serviceAccountName: loki
+      securityContext:
+        fsGroup: 10001
+        runAsUser: 10001
+        runAsNonRoot: true
+      containers:
+      - name: loki
+        image: grafana/loki:2.9.3
+        imagePullPolicy: IfNotPresent
+        args:
+          - -config.file=/etc/loki/loki.yaml
+          - -target=all
+        ports:
+        - containerPort: 3100
+          name: http-metrics
+          protocol: TCP
+        - containerPort: 9095
+          name: grpc
+          protocol: TCP
+        - containerPort: 7946
+          name: memberlist
+          protocol: TCP
+        env:
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: loki-minio-secret
+              key: access-key-id
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: loki-minio-secret
+              key: secret-access-key
+        livenessProbe:
+          httpGet:
+            path: /ready
+            port: 3100
+          initialDelaySeconds: 45
+          timeoutSeconds: 1
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3100
+          initialDelaySeconds: 45
+          timeoutSeconds: 1
+          periodSeconds: 10
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/loki
+        - name: storage
+          mountPath: /loki
+      volumes:
+      - name: config
+        configMap:
+          name: loki-config
+  volumeClaimTemplates:
+  - metadata:
+      name: storage
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  namespace: monitoring
+  labels:
+    app: loki
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3100
+    targetPort: 3100
+    protocol: TCP
+    name: http-metrics
+  - port: 9095
+    targetPort: 9095
+    protocol: TCP
+    name: grpc
+  selector:
+    app: loki
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-memberlist
+  namespace: monitoring
+  labels:
+    app: loki
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 7946
+    targetPort: 7946
+    protocol: TCP
+    name: memberlist
+  selector:
+    app: loki
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: loki-minio-secret
+  namespace: monitoring
+type: Opaque
+stringData:
+  access-key-id: loki-admin
+  secret-access-key: loki-secret-key-change-me

@@ -1,0 +1,11 @@
+{
+  "Rules": [
+    {
+      "ID": "retention-30-days",
+      "Filter": { "Prefix": "" },
+      "Status": "Enabled",
+      "Expiration": { "Days": 30 }
+    }
+  ]
+}
+

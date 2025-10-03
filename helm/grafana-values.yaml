@@ -1,0 +1,68 @@
+adminUser: admin
+adminPassword: admin
+
+service:
+  type: ClusterIP
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-server.prometheus.svc.cluster.local
+        isDefault: true
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://loki.observability.svc.cluster.local:3100
+        jsonData:
+          derivedFields:
+            - matcherRegex: "(?i)(trace(?:id|Id|_id))=(?<traceid>[a-f0-9\-]+)"
+              name: trace_id
+              datasourceUid: tempo
+              url: "$${__value.raw}"
+      - name: Tempo
+        uid: tempo
+        type: tempo
+        access: proxy
+        url: http://tempo.observability.svc.cluster.local:3200
+        jsonData:
+          serviceMap:
+            datasourceUid: prometheus
+
+grafana.ini:
+  panels:
+    disable_sanitize_html: true
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+
+dashboards:
+  default: {}
+
+sidecar:
+  dashboards:
+    enabled: true
+  datasources:
+    enabled: true
+
+env:
+  GF_EXPLORE_ENABLED: true
+
+ 
+
+ 

@@ -1,0 +1,11 @@
+apiVersion: pgv2.percona.com/v2-2-0
+kind: PerconaPGRestore
+metadata:
+  name: dev-pg-restore
+  namespace: postgres-dev
+spec:
+  clusterName: dev-pg
+  repoName: s3repo
+  options:
+    - --type=time
+    - --target="2025-01-01 00:00:00+00"

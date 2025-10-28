@@ -1,0 +1,155 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: percona-pg-critical-alerts
+  namespace: postgres-dev
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: percona-pg.critical
+      rules:
+        - alert: PGBRBackupJobFailed
+          expr: max_over_time(pgbackrest_info_backup_last_start_time{status!="completed"}[1d]) > 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: pgBackRest backup failed
+            description: Last backup did not complete successfully.
+        - alert: WALArchivingStalled
+          expr: rate(pg_wal_archives_total[10m]) == 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: WAL archiving stalled
+            description: No WAL archives uploaded in the last 10 minutes.
+        - alert: PITRRestoreFailure
+          expr: increase(pgbackrest_restore_failures_total[30m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: PITR restore failure detected
+            description: pgBackRest reported restore failure(s).
+        - alert: ReplicationLagHigh
+          expr: pg_replication_lag_seconds > 30
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Replication lag exceeds 30s
+            description: Standby replication lag is high.
+        - alert: ReplicaOutOfSync
+          expr: (pg_replication_lag_seconds > 300) or (pg_replication_is_replica == 0)
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Replica out of sync or slot inactive
+            description: Replica not following or replication slot inactive.
+        - alert: DiskUsageHigh
+          expr: (node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"} - node_filesystem_free_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"}) / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"} > 0.8
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Disk usage >80%
+            description: Filesystem usage high on PostgreSQL node.
+        - alert: WalDirUsageHigh
+          expr: pg_wal_directory_usage_bytes / pg_wal_directory_size_bytes > 0.7
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: WAL directory usage >70%
+            description: WAL directory approaching capacity.
+        - alert: DataPVCApproachingLimit
+          expr: kubelet_volume_stats_used_bytes{persistentvolumeclaim=~".*"} / kubelet_volume_stats_capacity_bytes{persistentvolumeclaim=~".*"} > 0.85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Data PVC capacity >85%
+            description: Data directory PVC approaching capacity.
+        - alert: CPUUtilizationHigh
+          expr: (sum(rate(container_cpu_usage_seconds_total{container!="",pod=~"dev-pg.*"}[5m])) by (pod)) / on(pod) group_left sum(kube_pod_container_resource_limits{resource="cpu", unit="core", pod=~"dev-pg.*"}) by (pod) > 0.9
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: High CPU utilization >90%
+            description: CPU usage high for sustained period.
+        - alert: HighIOWait
+          expr: rate(node_cpu_seconds_total{mode="iowait"}[5m]) > 0.2
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: High I/O wait
+            description: Nodes experiencing high IO wait.
+        - alert: AutovacuumLag
+          expr: pg_stat_all_tables_autovacuum_count == 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: Autovacuum not running
+            description: Autovacuum may be lagging or stuck.
+        - alert: TooManyActiveConnections
+          expr: sum(pg_stat_activity_count{datname!~"template.*|postgres"}) by (datname) / on() vector(300) > 0.9
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Too many active connections (>90% of max)
+            description: Active connections nearing max_connections.
+        - alert: LongRunningQueries
+          expr: max(pg_stat_activity_max_tx_duration_seconds) > 300
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Long running queries >5m
+            description: Investigate queries exceeding 5 minutes.
+        - alert: PrimaryPodRestarts
+          expr: increase(kube_pod_container_status_restarts_total{pod=~"dev-pg.*",container=~"postgres"}[10m]) > 3
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Primary pod restarted >3 times in 10m
+            description: Instability detected on primary.
+        - alert: ReplicaDown
+          expr: absent(up{pod=~"dev-pg.*",container=~"postgres"} == 1)
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Replica pod down >5m
+            description: Replica unavailable.
+        - alert: ClusterFailoverEvent
+          expr: increase(patroni_failovers[10m]) > 0
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: Cluster failover detected
+            description: Patroni reported a failover.
+        - alert: CheckpointFrequencyHigh
+          expr: rate(pg_checkpoints_timed_total[5m]) > 5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Frequent checkpoints
+            description: Write pressure indicated by frequent checkpoints.
+        - alert: ExporterMetricsMissing
+          expr: absent(pg_up) or absent(pgbouncer_up)
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Missing or failing exporter metrics
+            description: Postgres or PgBouncer metrics missing.

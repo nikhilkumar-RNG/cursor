@@ -1,0 +1,80 @@
+apiVersion: pgv2.percona.com/v2-2-0
+kind: PerconaPGCluster
+metadata:
+  name: dev-pg
+  namespace: postgres-dev
+spec:
+  instances:
+    - name: primary
+      replicas: 3
+      dataVolumeClaimSpec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 100Gi
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/component
+                      operator: In
+                      values: ["database"]
+                topologyKey: kubernetes.io/hostname
+  users:
+    - name: app
+      databases: ["app"]
+      options: ["SUPERUSER"]
+  backups:
+    pgbackrest:
+      # Use IRSA-bound service account for S3 access
+      serviceAccountName: pgbackrest
+      repos:
+        - name: s3repo
+          s3:
+            bucket: <S3_BUCKET_NAME>
+            endpointURL: https://s3.<AWS_REGION>.amazonaws.com
+            region: <AWS_REGION>
+          schedules:
+            full: "0 2 * * *"
+            incremental: "0 */6 * * *"
+          retention:
+            full: 7
+            differential: 14
+            archive: 7
+  proxy:
+    pgBouncer:
+      replicas: 2
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: 1
+          memory: 512Mi
+  monitoring:
+    enablePodMonitor: true
+  patroni:
+    dynamicConfiguration:
+      postgresql:
+        pg_hba:
+          - "local   all             all                                     trust"
+          - "host    all             all             127.0.0.1/32            trust"
+          - "host    all             all             ::1/128                 trust"
+          - "host    replication     all             0.0.0.0/0               md5"
+          - "host    all             all             0.0.0.0/0               md5"
+        parameters:
+          shared_buffers: "2GB"
+          max_connections: "300"
+          effective_cache_size: "6GB"
+          maintenance_work_mem: "512MB"
+          wal_keep_size: "2048MB"
+          max_wal_senders: "10"
+          checkpoint_timeout: "15min"
+          max_slot_wal_keep_size: "4096MB"
+  scheduling:
+    podDisruptionBudget:
+      minAvailable: 2

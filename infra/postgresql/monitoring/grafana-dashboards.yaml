@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-postgresql
+  namespace: postgres-dev
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: kube-prometheus-stack
+data:
+  postgresql-overview.json: |
+    {"__inputs":[],"title":"PostgreSQL Overview","panels":[]}
+  postgresql-performance.json: |
+    {"__inputs":[],"title":"PostgreSQL Performance","panels":[]}
+  postgresql-replication.json: |
+    {"__inputs":[],"title":"WAL Activity / Replication Lag","panels":[]}

@@ -1,0 +1,27 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: percona-pg-operator
+  namespace: percona-pg-operator
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: percona-postgresql-operator # TODO: verify chart name/version in official docs
+      version: "2.*" # target Percona Operator for PostgreSQL 2.x
+      sourceRef:
+        kind: HelmRepository
+        name: percona
+        namespace: flux-system
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    # Limit operator watch to specific namespaces (add more as needed)
+    watchNamespaces:
+      - postgres-dev

@@ -1,0 +1,9 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: ebs-csi-snapclass
+driver: ebs.csi.aws.com
+deletionPolicy: Delete
+parameters:
+  csi.storage.k8s.io/snapshotter-secret-name: ebs-secret
+  csi.storage.k8s.io/snapshotter-secret-namespace: kube-system

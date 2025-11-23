@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "krr-operator"
+version = "0.1.0"
+description = "Python-based Kubernetes restart operator for workloads, Strimzi Kafka, and PostgreSQL clusters."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Open Source Contributors" }
+]
+dependencies = [
+  "kopf>=1.37.2",
+  "kubernetes>=30.1.0",
+  "pydantic>=2.7",
+  "python-json-logger>=2.0.0",
+  "pyyaml>=6.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23",
+  "ruff>=0.6.0",
+  "mypy>=1.10.0",
+  "types-pyyaml"
+]
+
+[project.scripts]
+krr-operator = "krr_operator.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/krr_operator"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra --disable-warnings"
+testpaths = ["tests"]

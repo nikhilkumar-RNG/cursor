@@ -1,0 +1,44 @@
+apiVersion: restart.krr.sh/v1alpha1
+kind: RestartRequest
+metadata:
+  name: restart-web-deployment
+spec:
+  target:
+    kind: Deployment
+    name: web
+    namespace: default
+  reason: "Refresh application pods after config change"
+  strategy:
+    waitForRollout: true
+---
+apiVersion: restart.krr.sh/v1alpha1
+kind: RestartRequest
+metadata:
+  name: restart-kafka
+spec:
+  target:
+    kind: StrimziKafka
+    name: demo-cluster
+    namespace: kafka
+    plural: kafkas
+  labels:
+    strimzi.io/cluster: demo-cluster
+  reason: "Apply new Strimzi config"
+  strategy:
+    waitForRollout: true
+    timeoutSeconds: 1800
+---
+apiVersion: restart.krr.sh/v1alpha1
+kind: RestartRequest
+metadata:
+  name: restart-postgres
+spec:
+  target:
+    kind: PostgresCluster
+    name: accounts-db
+    namespace: data
+    plural: postgresclusters
+  dryRun: false
+  labels:
+    postgres-operator.crunchydata.com/cluster: accounts-db
+  reason: "Weekly maintenance"

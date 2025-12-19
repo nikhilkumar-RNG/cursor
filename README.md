@@ -1,6 +1,6 @@
-# Video Creation Examples
+# Video Creation Script - India's World Cup Victory
 
-This repository contains examples of how to create videos programmatically using Python.
+A Python script to create a celebratory video about India's World Cup victory using MoviePy.
 
 ## Installation
 
@@ -10,53 +10,81 @@ Install the required dependencies:
 pip install -r requirements.txt
 ```
 
-## Examples
+**Note:** MoviePy requires FFmpeg to be installed on your system:
+- **Linux**: `sudo apt-get install ffmpeg` (Ubuntu/Debian) or `sudo yum install ffmpeg` (CentOS/RHEL)
+- **macOS**: `brew install ffmpeg`
+- **Windows**: Download from https://ffmpeg.org/download.html
 
-### 1. Simple Video with OpenCV (`create_video_opencv.py`)
-Creates a simple animated video with changing colors.
+## Usage
 
-```bash
-python create_video_opencv.py
-```
+### Basic Usage (Text-only video)
 
-### 2. Video with MoviePy (`create_video_moviepy.py`)
-Creates a video with animated background and text overlays.
-
-```bash
-python create_video_moviepy.py
-```
-
-### 3. Video from Images (`create_video_from_images.py`)
-Creates a video from a sequence of images in a folder.
+Create a simple text-based video:
 
 ```bash
-python create_video_from_images.py
+python create_video.py
 ```
 
-## Quick Start
+This will create `india_world_cup_victory.mp4` with celebratory text slides.
 
-The simplest way to create a video:
+### Custom Output Path
 
-```python
-import cv2
-import numpy as np
-
-# Create a video writer
-fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-out = cv2.VideoWriter('output.mp4', fourcc, 30.0, (640, 480))
-
-# Write frames
-for i in range(150):  # 5 seconds at 30 fps
-    frame = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
-    out.write(frame)
-
-out.release()
+```bash
+python create_video.py -o my_video.mp4
 ```
 
-## Common Use Cases
+### With Images
 
-- **Animation**: Create animated visualizations
-- **Time-lapse**: Convert image sequences to videos
-- **Data Visualization**: Create videos from charts/graphs
-- **Video Editing**: Combine clips, add effects
-- **Screen Recording**: Process screenshots into videos
+If you have images to include:
+
+```bash
+python create_video.py -i image1.jpg image2.jpg image3.jpg -o output.mp4
+```
+
+### Custom Duration
+
+Change the duration per slide/image:
+
+```bash
+python create_video.py -d 5  # 5 seconds per slide
+```
+
+### Custom FPS
+
+Set frames per second:
+
+```bash
+python create_video.py -f 30  # 30 fps
+```
+
+## Features
+
+- Text overlays with Indian flag colors (saffron, white, green)
+- Fade in/out transitions
+- Support for image inputs
+- Customizable duration and FPS
+- High-quality video output (H.264 codec)
+
+## Example
+
+```bash
+# Create a basic video
+python create_video.py
+
+# Create video with custom settings
+python create_video.py -o victory.mp4 -d 4 -f 30
+
+# Create video with images
+python create_video.py -i photo1.jpg photo2.jpg -o celebration.mp4
+```
+
+## Output
+
+The script generates an MP4 video file with:
+- Title slide: "INDIA'S WORLD CUP VICTORY"
+- Celebration slide: "🏆 CHAMPIONS 🏆"
+- Victory message
+- Key moments highlights
+- Final message: "Jai Hind! 🇮🇳"
+
+All slides use Indian flag colors and include smooth fade transitions.
